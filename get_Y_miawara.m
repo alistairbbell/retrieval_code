@@ -1,0 +1,82 @@
+%%%%%%%%% Import measurement data and set up Y
+% FORMAT   [Y, msm] = get_Y(start_num,narg2,bw)
+%        
+% OUT   Y        
+%       msm      level1 data
+% IN    start_num
+% 	narg2	 either sigma or end_num
+%	bw	 bandwidth of measurement
+
+function [Y, msm] = get_Y_miawara(time, bw, extra_info)
+
+disp('-> loading measurement')
+bandwidth=bw;
+msm.y=[];
+Y   = qp2_y; % initialize
+
+time_str = sprintf('%s_%s_%s',  num2str(year(time),'%02.f') , num2str(month(time),'%02.f') , num2str(day(time),'%02.f') );
+msm = get_level1_acq_from_miawara_NetCDF(time_str,extra_info);
+
+disp('msm.y size')
+disp(size(msm(1).y))
+
+for i=1:length(msm)
+    if ~isempty(msm(i).y)==1
+        frequency_ind = (find(msm(i).f>=22.23508e9-bandwidth/2 & msm(i).f<=22.23508e9+bandwidth/2));
+        msm(i).y = flip(msm(i).y(frequency_ind,:));
+        %msm(i).y = flip(msm(i).y(:)); %invert spectrum - find out where to correct in more rigorous way
+        msm(i).f = msm(i).f(frequency_ind,:);
+
+    else
+       disp('no level1 data found, inversion aborted!')
+       msm=[];
+       return
+    end
+end
+
+for i = 1:length(msm)
+    disp('Start Loop Y init:')
+    disp(i)
+
+    %%% set up Y as required by qpack2:
+    epochdate  = datetime(1970,1,1);
+    Y(i).YEAR       = year(msm(i).time(1)+ datenum(epochdate));
+    Y(i).MONTH      = month(msm(i).time(1)+ datenum(epochdate));
+    Y(i).DAY        = day(msm(i).time(1)+ datenum(epochdate));
+    Y(i).HOUR       = hour(msm(i).time(1)+ datenum(epochdate));
+    Y(i).MINUTE     = minute(msm(i).time(1)+ datenum(epochdate));
+    Y(i).SECOND     = second(msm(i).time(1)+ datenum(epochdate));
+    Y(i).LATITUDE   = msm(i).latitude;
+    Y(i).LONGITUDE  = msm(i).longitude;
+    %Y.HSE_P      = 100*nanmean(mysql(sprintf('select pressure from meteo where time between "%s" and "%s";', datestr(msm.time-0.1,31),datestr(msm.time+0.1,31)),'mat'));
+    delta=1;
+    
+    %     disp('time value')
+    %     disp(msm(i).time);
+    [time_values, time_idx] = min(abs( msm(i).time - msm(i).meteo_time(:) ) );
+    
+    disp(time_idx)
+
+    Y(i).HSE_Z      = msm.altitude;
+    Y(i).Z_PLATFORM = 15000; % Platform altitude
+    Y(i).ZA         = 0;     % Zenith angle of the measurement
+    Y(i).F =  flip(msm(i).f);% deal({});  %msm.f-100e3 this field is now obsolete;
+    %Y.Y = msm.y;
+    %WARNING this selects only the first reading from obs file - should be
+    %corrected to take all readings into account
+    Y(i).HSE_P = msm(i).HSE_P(time_idx);
+    Y(i).Y = msm(i).y;
+    
+    disp('size(Y(i).Y)')
+    disp(size(Y(i).Y))
+    
+    %%% limit noise to noise >=0.01K!
+    if msm(i).sigma>0.01
+        Y(i).TNOISE = msm(i).sigma; % Measurement noise, i.e std(Y.Y)
+    else
+        Y(i).TNOISE = 0.01;
+    end
+
+    disp('length(Y.TNOISE)')
+    disp(size(Y(i).TNOISE))
+end

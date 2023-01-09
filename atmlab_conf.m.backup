@@ -1,0 +1,9 @@
+function atmlab_conf
+
+atmlab( 'ARTS_PATH', '/opt/arts/arts2/build/src/arts' );
+atmlab( 'ARTS_XMLDATA_PATH', '/opt/arts/arts-xml-data/' );
+atmlab( 'WORK_AREA', '/tmp/' );
+atmlab( 'ARTS_INCLUDES', '/opt/arts/arts2/includes/' );
+atmlab( 'FMODEL_VERBOSITY', 0);
+%atmlab( 'EXTRAP', true);
+atmlab( 'VERBOSITY', 1);
