@@ -5,6 +5,9 @@ fileL1 = join([extra_info.l1_dir, extra_info.l1_savename , time_str , extra_info
 disp(fileL1)
 pol0 = 0;
 
+fc = extra_info.f_cen;
+bw = extra_info.bw_obs;
+
 if exist(fileL1,'file')
     disp('Found level 1 file')
 	%ncread
@@ -15,19 +18,23 @@ if exist(fileL1,'file')
     latitude         = ncread(fileL1,'/spectrometer1/lat');
     longitude        = ncread(fileL1,'/spectrometer1/lon');
     tint             = ncread(fileL1,'/spectrometer1/calibration_time');
-    f                = ncread(fileL1,'/spectrometer1/frequencies');
+    try
+        f                = ncread(fileL1,'/spectrometer1/frequencies');
+        sigma            = ncread(fileL1,'/spectrometer1/sigma');
+        tau              = ncread(fileL1,'/spectrometer1/mean_opacity');
+      	pol          = ncread(fileL1,'/spectrometer1/pol');
+    catch exception
+        f                = ncread(fileL1,'/spectrometer1/frequency');
+        tau              = ncread(fileL1,'/spectrometer1/tau');
+    end
     y                = ncread(fileL1,'/spectrometer1/Tb'); 
-    sigma            = ncread(fileL1,'/spectrometer1/sigma');
-    tau              = ncread(fileL1,'/spectrometer1/mean_opacity');
     trec             = ncread(fileL1,'/spectrometer1/TSys');
     a                = ncread(fileL1,'/spectrometer1/A');
     A                = ncread(fileL1,'/spectrometer1/a');
     mirror_elevation = ncread(fileL1,'/spectrometer1/mean_sky_elevation_angle');
-	pol          = ncread(fileL1,'/spectrometer1/pol');
     meteo_time = ncread(fileL1,'/meteo/time');
     pressure = ncread(fileL1,'/meteo/air_pressure');
     % select date & pol
-
     idx_t = time+datenum('1970-01-01') >= datenum(time_str) & time+datenum('1970-01-01') <= (datenum(time_str) + hours(24));
     idx_pol =  pol == pol0;
     idx = idx_t & idx_pol;
@@ -52,6 +59,7 @@ if exist(fileL1,'file')
         msm(i).tint             = tint(i);
         msm(i).f                = f(:);
         msm(i).y                = y(:,i);
+        
         msm(i).integration_ok   = 1;
         msm(i).tau              = tau(i);
         msm(i).trec             = trec(i);
@@ -65,14 +73,13 @@ if exist(fileL1,'file')
         %disp('meteo time')
         %disp(msm(i).meteo_time)
   
-         ind = find(f>=2.226002048709027e+10 & f>=2.226496463651346e+10);
+        ind = find((f>=fc-bw/2) & (f>=fc-bw/2));
     
          m = length(ind);
-         [p,s,mu]=polyfit(1:m,msm(i).y(ind),1);
-         level1_sigma=msm(i).y(ind)'-polyval(p,1:m,[],mu);
-         disp('size(level1_sigma)')
-         disp(size(level1_sigma))
-         msm(i).sigma=std(level1_sigma);
+         %[p,s,mu]=polyfit(1:m,msm(i).y(ind),1);
+         %level1_sigma=msm(i).y(ind)'-polyval(p,1:m,[],mu);
+         %disp('size(level1_sigma)')
+         %disp(size(level1_sigma))
         end
 else
     disp('File does not exist');

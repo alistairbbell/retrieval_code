@@ -1,11 +1,22 @@
+
+% This function does a Qpack2 retrieval, based on information
+% about the measurement (M) and on the information about the
+% retrieval (R). The QQ-Structure contains additional information
+% for the Q-Structure. The information in the QQ-Structure will be
+% replaced into the Q-Structure after the Q-Structure was created.
+%
+
+
 %==========================================================================
 % NAME      | run_retrieval_miawara_v1.m
 % TYPE      | Script
 % AUTHOR(S) | Alistair Bell
-% CREATION  | 09.2022
+% CREATION  | 03.2023
 %           |
 % ABSTRACT  | Main script for launching the retrieval of MIAWARA calibrated
 %           | brightness temperature data. 
+
+
 %           | This script is designed for running custom retrievals (i.e.
 %           | either testing various settings or running retrievals over a
 %           | specific period of time. 
@@ -15,29 +26,35 @@
 %           | includes paths towards the output directories, plotting
 %           | settings, and the a priori profiles used, in addition to other
 %           | retrieval paramters which affect how the retrieval is run. 
+%      
+%           | 
 %           | 
 % ARGUMENTS | INPUTS: - start and end date
 %           |
-%           | OUTPUTS: retrieval files saved into extra_info.save_dir and
-%           | plots saved into extra_info.plot_dir
+%           | OUTPUTS: level1b data, tropospheric opacity data
 %           |
-% CALLS     | get_Y_miawara(time,extra_info)
-%           | ***ADD OTHERS 
+% CALLS     | import_default_calibrationTool(instrumentName,dateStr)
+%           | run_calibration(calibrationTool)
 %           |
 %==========================================================================
 
 
+
+
 %%% first setup for retrieval with ARTS/Qpack 2.4
+
+
 % Initialize paths for Atmlab:
 addpath('/home/alistair/ARTS/testing/atmlab-2.4.2/')
 run( '/home/alistair/ARTS/testing/atmlab-2.4.2/atmlab/atmlab_init.m' )
 version=1;
 sub_version=1;
-delta_t=24; %time step in hours
+delta_t=24; %hours
 
 %%%%%%%%%%% start and stop time of retrievals%%%%%%%%%%%%%%%%
-start=datenum(2023,1,26);
-stop=datenum(2023,1,27);
+
+start=datenum(2022,10,26);
+stop=datenum(2022,10,27);
 
 %%%%%%%%%%%%%% add a brief description of settings %%%%%%%%%%
 %% It is important to update this section on EACH RUN %%
@@ -66,9 +83,11 @@ extra_info.additional_noise = 0.002;
 idx_exclude = [8192 8193]; % 8192 8193 8193 8194
 extra_info.noise_inf_idx = [1:8192-875 idx_exclude 8192+875:16384]; %[1:8192-655 idx_exclude 8192+655:16384];%8192+573:16384 
 %extra_info.noise_inf_idx = [1:8192-775 idx_exclude 8192+775:16384]; %[1:8192-655 idx_exclude 8192+655:16384];%8192+573:16384 
+
 extra_info.idx_exclude = []; %[1:8192-655 idx_exclude 8192+655:16384];
 
 %==================Files and Paths===========================
+
 extra_info.l1_savename = 'MIAWARA_level1a_AC240_';
 extra_info.l1_file_ext = '.nc' ;
 extra_info.save_dir = '/home/alistair/export/data/miawara/LOWNOISE/';
@@ -99,6 +118,7 @@ disp(sprintf('distorted part of spectrum cut away!\n'));
 time=start;
 for time=start:delta_t/24:stop
     clear L2
+    %disp(datestr(time))
     %%%%%%%%% Import measurement data %%%%%%%%
     try
         [Y, msm,extra_info] = get_Y_miawara(time, extra_info);

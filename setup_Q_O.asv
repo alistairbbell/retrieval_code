@@ -19,10 +19,9 @@ z_smooth = interp1(ptz(:,1), ptz(:,3),  p_smooth);
 ptz_smooth = [p_smooth; t_smooth; z_smooth]';
 
 %%%%%%%%% initialize Q
-Q = qarts;
 Q = createQ(Y,R,ptz);
 
-%- General
+%- General 
 Q.INCLUDES            = { fullfile( arts_includes, 'general.arts'),fullfile( arts_includes, 'continua.arts' ) ,...
 fullfile( arts_includes, 'agendas.arts' ), fullfile( 'ARTS_INCLUDES', 'planet_earth.arts' ) };
 Q.ATMOSPHERE_DIM      = 1;
@@ -38,7 +37,7 @@ Q.IY_UNIT              = 'RJBT';
 Q.YCALC_WSMS          = { 'yCalc' };
 %
 Q.PPATH_LMAX          = 250; % max distance between points
-%Q.PPATH_STEP_AGENDA   = { 'ppath_stepGeometric' };  % geom. Propagation, 
+Q.PPATH_STEP_AGENDA   = { 'ppath_stepGeometric' };  % geom. Propagation, 
                                                     % refraction neglected
 Q.PPATH_AGENDA               = { 'ppath_agenda__FollowSensorLosPath'   };
 Q.PPATH_STEP_AGENDA          = { 'ppath_step_agenda__GeometricPath'    };
@@ -49,6 +48,10 @@ Q.IY_MAIN_AGENDA             = { 'iy_main_agenda__Emission'            };
 %- Surface
 Q.Z_SURFACE          = 15e3;      % Just a dummy value. A 15 km observation 
                                   % altitude is assumed here
+
+Q.SENSOR_LOS         = Y.ZA;
+Q.SENSOR_POS         = Q.Z_SURFACE;
+Q.SENSOR_DO          = true;
 
 %- Absorption
 %
@@ -87,19 +90,6 @@ B.data                = ch_resp(:,2)';
 %
 H.BACKEND_CHANNEL_RESPONSE{1} = B;
 clear B ch_resp
-
-% Acqiris FFT channel response
-% ch_resp = read_datafile(fullfile(curr_dir,'datafiles','FFT_ACQ1_channelresponse.aa'),'matrix');
-% Q.SENSOR_RESPONSE.BACKEND_DO = 1;
-% Q.SENSOR_RESPONSE.MIXER_DO = 0;
-% Q.SENSOR_RESPONSE.F_BACKEND  = Y.F;
-% Q.SENSOR_RESPONSE.BACKEND_CHANNEL_RESPONSE{1}.name      = 'Acqiris FFT channel response';
-% Q.SENSOR_RESPONSE.BACKEND_CHANNEL_RESPONSE{1}.gridnames = {'Frequency'};
-% Q.SENSOR_RESPONSE.BACKEND_CHANNEL_RESPONSE{1}.grids     = {ch_resp(:,1)'};
-% Q.SENSOR_RESPONSE.BACKEND_CHANNEL_RESPONSE{1}.dataname  = 'Response';
-% Q.SENSOR_RESPONSE.BACKEND_CHANNEL_RESPONSE{1}.data      = ch_resp(:,2)';
-% clear ch_resp
-
 %
 Q.SENSOR_DO           = true; %to include sensor settings
 Q.SENSOR_RESPONSE     = H;
@@ -109,18 +99,15 @@ Q.MBLOCK_DLOS_GRID    = 0;
 %- Correlation of thermal noise (not correlated)
 Q.TNOISE_C = covmat1d_from_cfun(Q.SENSOR_RESPONSE.F_BACKEND,[],'drc',0,0);  %no correlation, diagonal in Y.TNOISE
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%                Pressure & Height Variables                         %%%
-%- Pressure grid (not the retrieval grid!)
-Q.P_GRID   = power(10,linspace(4.25,-2,100))';
+%%% PTZ
 Q.HSE.ON       = false;
-
 if isnan(mean(ptz(:,2), 'omitnan'))
     disp('No PTZ data found!')
     return
 end
 
 Q.VMR_NEGATIVE_OK = false; %avoid negative values of water vapour in forward model
+
 Q.T.RETRIEVE           = false;
 Q.T.ATMDATA.TYPE       = 'atmdata';
 Q.T.ATMDATA.NAME       = 'Temperature';
@@ -144,7 +131,6 @@ Q.Z.ATMDATA.GRID1_NAME = 'Pressure';
 Q.Z.ATMDATA.GRID1_UNIT = 'Pa';
 clear ptz
 clear ptz_smooth
-
 %%% a priori profile
 %Q.ABS_SPECIES(1).ATMDATA  = gf_load([top_dir,'/h2o_climatology_mls22.mat']); does not yet work
 %for i = 1:length(Y.YEAR)
@@ -236,8 +222,8 @@ Q.ABS_SPECIES(1).SX = covmat1d_from_cfun( Q.ABS_SPECIES(1).GRIDS{1},sx_abs, 'exp
 Q.POLYFIT.RETRIEVE        = true;
 Q.POLYFIT.ORDER           = 4;
 Q.POLYFIT.L2              = true;
-Q.POLYFIT.SX0             = 1^2;
-Q.POLYFIT.SX1             = 0.1^2;
+Q.POLYFIT.SX0             = 1^2; 
+Q.POLYFIT.SX1             = 0.1^2; 
 Q.POLYFIT.SX2             = 0.1^2;
 Q.POLYFIT.SX3             = 0.1^2;
 Q.POLYFIT.SX4             = 0.1^2;
@@ -245,8 +231,8 @@ Q.POLYFIT.SX4             = 0.1^2;
 %- Define L2 structure (beside retrieval quantities below)
 Q.L2_EXTRA = {'dx','cost','e','eo','es','A','S','yf','So','Ss','G','J','mresp','date','xa','y','bl','tnoise','ptz'};
 %
-%- Frequency (shift retrieval here, shift+stretch also possible)
-%
+% %- Frequency (shift retrieval here, shift+stretch also possible)
+% %
 Q.FSHIFTFIT.RETRIEVE = true;
 Q.FSHIFTFIT.DF = 5e3;
 Q.FSHIFTFIT.SX = 200e2^2;

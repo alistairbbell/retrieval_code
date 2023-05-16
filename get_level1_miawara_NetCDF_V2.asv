@@ -1,4 +1,4 @@
-function [msm]=get_level1_acq_from_miawara_NetCDF(time_str,extra_info)
+function [msm]=get_level1_miawara_NetCDF_V2(time_str,extra_info)
 
 % filename
 fileL1 = join([extra_info.l1_dir, extra_info.l1_savename , time_str , extra_info.l1_file_ext]) ;
@@ -18,15 +18,8 @@ if exist(fileL1,'file')
     latitude         = ncread(fileL1,'/spectrometer1/lat');
     longitude        = ncread(fileL1,'/spectrometer1/lon');
     tint             = ncread(fileL1,'/spectrometer1/calibration_time');
-    try
-        f                = ncread(fileL1,'/spectrometer1/frequencies');
-        sigma            = ncread(fileL1,'/spectrometer1/sigma');
-        tau              = ncread(fileL1,'/spectrometer1/mean_opacity');
-      	pol          = ncread(fileL1,'/spectrometer1/pol');
-    catch exception
-        f                = ncread(fileL1,'/spectrometer1/frequency');
-        tau              = ncread(fileL1,'/spectrometer1/tau');
-    end
+    f                = ncread(fileL1,'/spectrometer1/frequency');
+    tau              = ncread(fileL1,'/spectrometer1/tau');
     y                = ncread(fileL1,'/spectrometer1/Tb'); 
     trec             = ncread(fileL1,'/spectrometer1/TSys');
     a                = ncread(fileL1,'/spectrometer1/A');
@@ -34,10 +27,21 @@ if exist(fileL1,'file')
     mirror_elevation = ncread(fileL1,'/spectrometer1/mean_sky_elevation_angle');
     meteo_time = ncread(fileL1,'/meteo/time');
     pressure = ncread(fileL1,'/meteo/air_pressure');
-    % select date & pol
-    idx_t = time+datenum('1970-01-01') >= datenum(time_str) & time+datenum('1970-01-01') <= (datenum(time_str) + hours(24));
-    idx_pol =  pol == pol0;
-    idx = idx_t & idx_pol;
+
+    % Convert UNIX time to MATLAB datenum
+    unix_time = seconds(time);
+    ref_date = datenum('1970-01-01');
+    time_datenum = datenum(unix_time + ref_date);
+    
+    % Convert time_str to datenum
+    time_str_datenum = datenum(time_str);
+    
+    % Create a 24-hour range for comparison
+    time_range_start = time_str_datenum;
+    time_range_end = time_str_datenum + hours(24);
+    
+    % Find the indices within the time range
+    idx = (time_datenum >= time_range_start) & (time_datenum <= time_range_end);
     
     disp('y size')
     disp(size(y))
@@ -50,7 +54,7 @@ if exist(fileL1,'file')
  
     % output format
     for i = 1:length(time)
-        msm(i).time             = time(i);%mean(time(idx)+datenum('1970-01-01'));
+        msm(i).time             = time(i)/(3600*24);%mean(time(idx)+datenum('1970-01-01'));
         msm(i).max_time         = max_time(i);%mean(max_time(idx)+datenum('1970-01-01'));
         msm(i).min_time         = min_time(i);%mean(min_time(idx)+datenum('1970-01-01'));
         msm(i).altitude         = altitude(i);
@@ -86,6 +90,8 @@ else
 	msm = empty_output;
 end
 
+end
+
 %== subroutines ==%
 
 function msm=empty_output
@@ -108,3 +114,4 @@ msm.A=[];
 msm.mirror_elevation=[];
 msm.pol= [];
 msm.HSE_P = [];
+end
